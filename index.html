@@ -1,0 +1,2698 @@
+<html lang="zh-CN"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打卡集小红花</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#FF6B8B',
+                        secondary: '#FFD166',
+                        tertiary: '#06D6A0',
+                        light: '#F7F9FC',
+                        dark: '#2B2D42'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    animation: {
+                        'bounce-slow': 'bounce 2s infinite',
+                        'spin-slow': 'spin 3s linear infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .card-shadow {
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            }
+            .bg-pattern {
+                background-image: url('https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/61f21c39526f4230b4d55e7c99a4846b~tplv-a9rns2rl98-image.image?rcl=2025110212062922571692BA39739A25E3&rk3s=8e244e95&rrcfp=f06b921b&x-expires=1764648425&x-signature=2OSXWXaHA14O3DD9gNGLvKvsBH0%3D');
+                background-size: cover;
+                background-position: center;
+            }
+            .flower-icon {
+                width: 24px;
+                height: 24px;
+                display: inline-block;
+                background-image: url('https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/d261b923f86a4a20b3295987c7f91bdb~tplv-a9rns2rl98-image.image?rcl=2025110212062922571692BA39739A25E3&rk3s=8e244e95&rrcfp=f06b921b&x-expires=1764648417&x-signature=qqpjHCoUH6Rzi1qVoxjeO9GXi78%3D');
+                background-size: contain;
+                background-repeat: no-repeat;
+                vertical-align: middle;
+            }
+            .flower-icon-large {
+                width: 48px;
+                height: 48px;
+            }
+            .glass-effect {
+                background: rgba(255, 255, 255, 0.7);
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+            }
+            .progress-ring-circle {
+                transition: stroke-dashoffset 0.35s;
+                transform: rotate(-90deg);
+                transform-origin: 50% 50%;
+            }
+
+        }
+    </style>
+</head>
+<body class="bg-pattern min-h-screen font-sans text-dark">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 flex items-center justify-center bg-white z-50">
+        <div class="flex flex-col items-center">
+            <div class="flower-icon flower-icon-large animate-bounce-slow"></div>
+            <p class="mt-4 text-lg font-medium text-primary">加载中...</p>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div id="app" class="container mx-auto px-4 py-8 max-w-md hidden">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-primary mb-2 text-shadow">打卡集小红花</h1>
+            <p class="text-gray-600">完成任务，收集小红花，兑换奖励！</p>
+        </header>
+
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="mb-8">
+            <div class="bg-white rounded-2xl p-6 card-shadow mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-primary">小金鱼的钱包</h2>
+                    <span id="current-date" class="text-sm text-gray-500"></span>
+                </div>
+                
+                <div class="flex justify-between items-center mb-6">
+                    <div class="text-center">
+                        <div class="relative w-32 h-32 mx-auto">
+                            <svg class="w-full h-full" viewBox="0 0 100 100">
+                                <circle class="text-gray-200" stroke-width="10" stroke="currentColor" fill="transparent" r="40" cx="50" cy="50"></circle>
+                                <circle id="progress-circle" class="text-primary progress-ring-circle" stroke-width="10" stroke="currentColor" fill="transparent" r="40" cx="50" cy="50" stroke-dasharray="251.2" stroke-dashoffset="251.2"></circle>
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span id="total-flowers" class="text-3xl font-bold">0</span>
+                                <span class="text-sm text-gray-500">小红花</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-tertiary" id="total-rewards">0.00</div>
+                        <div class="text-sm text-gray-500">可兑换 (元)</div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-gray-600" id="redeemed-total">0.00</div>
+                        <div class="text-sm text-gray-500">已兑换 (元)</div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between items-center">
+                    <div>
+                        <div class="text-sm text-gray-500">距离下一元还需</div>
+                        <div class="flex items-center">
+                            <span id="flowers-needed" class="font-bold">5</span>
+                            <span class="ml-1 text-sm text-gray-500">朵小红花</span>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button id="redeem-btn" class="bg-tertiary hover:bg-opacity-80 text-white px-4 py-2 rounded-full text-sm font-medium transition-all">
+                            兑换奖励
+                        </button>
+                        <button id="deduct-flowers-btn" class="bg-red-500 hover:bg-opacity-80 text-white px-4 py-2 rounded-full text-sm font-medium transition-all">
+                            扣减小红花
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Tasks -->
+            <div class="bg-white rounded-2xl p-6 card-shadow">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-primary">最近任务</h2>
+                    <button id="view-all-tasks" class="text-tertiary text-sm font-medium">查看全部</button>
+                </div>
+                <div id="recent-tasks" class="space-y-4">
+                    <!-- Recent tasks will be inserted here -->
+                    <div class="text-center text-gray-500 py-4">
+                        暂无任务，点击下方按钮添加任务
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tasks Section -->
+        <section id="tasks" class="mb-8 hidden">
+            <div class="bg-white rounded-2xl p-6 card-shadow mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-primary">任务管理</h2>
+                    <button id="add-task-btn" class="bg-primary hover:bg-opacity-80 text-white px-4 py-2 rounded-full text-sm font-medium transition-all">
+                        <i class="fa fa-plus mr-1"></i> 添加任务
+                    </button>
+                </div>
+                
+                <div class="flex mb-4">
+                    <div class="relative flex-grow">
+                        <input type="text" id="search-tasks" placeholder="搜索任务..." class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <i class="fa fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                </div>
+                
+                <div id="tasks-list" class="space-y-4">
+                    <!-- Tasks will be inserted here -->
+                    <div class="text-center text-gray-500 py-4">
+                        暂无任务，点击上方按钮添加任务
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Check-in Section -->
+        <section id="checkin" class="mb-8 hidden">
+            <div class="bg-white rounded-2xl p-6 card-shadow">
+                <h2 class="text-xl font-bold text-primary mb-4">任务打卡</h2>
+                
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-medium mb-2" for="checkin-task-select">
+                        选择任务
+                    </label>
+                    <div class="relative">
+                        <select id="checkin-task-select" class="w-full px-3 py-2 appearance-none border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent pr-8">
+                            <option value="">-- 请选择一个任务 --</option>
+                            <!-- Tasks will be inserted here -->
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                            <i class="fa fa-chevron-down"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="checkin-task-info" class="mb-6 p-4 bg-light rounded-lg">
+                    <h3 id="checkin-task-name" class="text-lg font-bold mb-2">选择一个任务</h3>
+                    <p id="checkin-task-description" class="text-gray-600 mb-2">请从任务列表中选择一个任务进行打卡</p>
+                    <div class="flex items-center">
+                        <span class="text-sm text-gray-500">难度：</span>
+                        <div id="checkin-task-difficulty" class="flex ml-2">
+                            <!-- Difficulty stars will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-medium mb-2" for="checkin-photo">
+                        上传完成照片
+                    </label>
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary transition-colors" id="photo-upload-area">
+                        <input type="file" id="checkin-photo" accept="image/*" capture="camera" class="hidden">
+                        <i class="fa fa-camera text-4xl text-gray-400 mb-2"></i>
+                        <p class="text-sm text-gray-500">点击或拖拽照片到此处 <span class="text-primary">或粘贴截图</span></p>
+                        <p class="text-xs text-gray-400 mt-1">支持JPG、PNG格式</p>
+                    </div>
+                    
+                    <!-- 上传成功提示 -->
+                    <div id="upload-success" class="mt-2 hidden">
+                        <div class="flex items-center text-green-600 text-sm">
+                            <i class="fa fa-check-circle mr-1"></i>
+                            <span id="upload-message">粘贴成功！</span>
+                        </div>
+                    </div>
+                    
+                    <div id="photo-preview" class="mt-4 hidden">
+                        <div class="relative w-full" style="padding-top: 75%;">
+                            <img id="preview-image" src="" alt="预览图片" class="absolute top-0 left-0 w-full h-full object-cover rounded-lg">
+                        </div>
+                        <div class="flex justify-between mt-2">
+                            <button id="remove-photo" class="text-sm text-red-500 hover:text-red-700">
+                                <i class="fa fa-times mr-1"></i> 移除照片
+                            </button>
+                            <button id="save-photo" class="text-sm text-primary hover:text-blue-700">
+                                <i class="fa fa-save mr-1"></i> 保存照片
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-medium mb-2" for="checkin-notes">
+                        打卡备注 (可选)
+                    </label>
+                    <textarea id="checkin-notes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="记录一下完成情况..."></textarea>
+                </div>
+                
+                <div class="flex justify-between">
+                    <button id="cancel-checkin" class="border border-gray-300 text-gray-700 px-4 py-2 rounded-full text-sm font-medium hover:bg-gray-100 transition-all">
+                        取消
+                    </button>
+                    <button id="submit-checkin" class="bg-primary hover:bg-opacity-80 text-white px-4 py-2 rounded-full text-sm font-medium transition-all" disabled="">
+                        提交打卡
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- History Section -->
+        <section id="history" class="mb-8 hidden">
+            <div class="bg-white rounded-2xl p-6 card-shadow">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-primary">打卡历史</h2>
+                    <div class="flex space-x-2">
+                        <button id="export-excel" class="bg-tertiary hover:bg-opacity-80 text-white px-3 py-1 rounded-full text-xs font-medium transition-all flex items-center">
+                            <i class="fa fa-download mr-1"></i> 导出Excel
+                        </button>
+                        <button id="export-backup" class="bg-gray-600 hover:bg-opacity-80 text-white px-3 py-1 rounded-full text-xs font-medium transition-all flex items-center">
+                            <i class="fa fa-save mr-1"></i> 备份数据
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <button class="history-period-btn bg-primary text-white px-3 py-1 rounded-full text-xs font-medium" data-days="7">最近7天</button>
+                    <button class="history-period-btn bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-xs font-medium" data-days="30">最近30天</button>
+                    <button class="history-period-btn bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-xs font-medium" data-days="all">全部时间</button>
+                </div>
+                
+                <div class="flex mb-4">
+                    <div class="relative flex-grow">
+                        <input type="text" id="search-history" placeholder="搜索历史..." class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <i class="fa fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                </div>
+                
+                <div id="history-list" class="space-y-4 pb-20">
+                    <!-- History items will be inserted here -->
+                    <div class="text-center text-gray-500 py-4">
+                        暂无打卡记录
+                    </div>
+                </div>
+                
+                <div id="history-pagination" class="flex justify-center items-center mt-6">
+                    <button id="prev-page" class="px-3 py-1 border border-gray-300 rounded-l-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <i class="fa fa-chevron-left"></i>
+                    </button>
+                    <div id="page-numbers" class="flex">
+                        <button class="px-3 py-1 border-t border-b border-gray-300 text-primary font-medium">1</button>
+                    </div>
+                    <button id="next-page" class="px-3 py-1 border border-gray-300 rounded-r-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <i class="fa fa-chevron-right"></i>
+                    </button>
+                </div>
+                
+                <div class="mt-6 flex justify-between items-center">
+                    <div class="text-sm text-gray-500">
+                        显示 <span id="showing-records">0</span> 条，共 <span id="total-records">0</span> 条记录
+                    </div>
+                    <div class="flex space-x-2">
+                        <button id="cleanup-old-data" class="bg-orange-500 hover:bg-opacity-80 text-white px-3 py-1 rounded-full text-xs font-medium transition-all flex items-center">
+                            <i class="fa fa-trash mr-1"></i> 清理旧数据
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Navigation -->
+        <nav class="fixed bottom-0 left-0 right-0 bg-white shadow-lg rounded-t-3xl z-10">
+            <div class="container mx-auto max-w-md">
+                <div class="flex justify-around items-center py-3">
+                    <button class="nav-btn flex flex-col items-center px-3 py-2 text-primary" data-target="dashboard">
+                        <i class="fa fa-home text-xl"></i>
+                        <span class="text-xs mt-1">首页</span>
+                    </button>
+                    <button class="nav-btn flex flex-col items-center px-3 py-2 text-gray-400" data-target="tasks">
+                        <i class="fa fa-list text-xl"></i>
+                        <span class="text-xs mt-1">任务</span>
+                    </button>
+                    <button class="nav-btn flex flex-col items-center px-3 py-2 text-gray-400" data-target="checkin">
+                        <div class="w-12 h-12 rounded-full bg-primary flex items-center justify-center -mt-6 shadow-lg">
+                            <i class="fa fa-check text-white text-xl"></i>
+                        </div>
+                        <span class="text-xs mt-1 text-primary">打卡</span>
+                    </button>
+                    <button class="nav-btn flex flex-col items-center px-3 py-2 text-gray-400" data-target="history">
+                        <i class="fa fa-history text-xl"></i>
+                        <span class="text-xs mt-1">历史</span>
+                    </button>
+                    <button class="nav-btn flex flex-col items-center px-3 py-2 text-gray-400" data-target="settings">
+                        <i class="fa fa-cog text-xl"></i>
+                        <span class="text-xs mt-1">设置</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Add Task Modal -->
+        <div id="add-task-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
+                <h3 class="text-xl font-bold text-primary mb-4">添加新任务</h3>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-medium mb-2" for="task-name">
+                        任务名称
+                    </label>
+                    <input type="text" id="task-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="输入任务名称">
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-medium mb-2" for="task-description">
+                        任务描述
+                    </label>
+                    <textarea id="task-description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="描述任务内容..."></textarea>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-medium mb-2">
+                        任务难度 (小红花数量)
+                    </label>
+                    <div class="flex space-x-4">
+                        <button class="difficulty-btn flex-1 py-2 border border-gray-300 rounded-lg text-center hover:border-primary transition-colors" data-value="1">
+                            <span class="flower-icon"></span>
+                            <span class="ml-1">简单</span>
+                        </button>
+                        <button class="difficulty-btn flex-1 py-2 border border-gray-300 rounded-lg text-center hover:border-primary transition-colors" data-value="2">
+                            <span class="flower-icon"></span>
+                            <span class="flower-icon"></span>
+                            <span class="ml-1">中等</span>
+                        </button>
+                        <button class="difficulty-btn flex-1 py-2 border border-gray-300 rounded-lg text-center hover:border-primary transition-colors" data-value="3">
+                            <span class="flower-icon"></span>
+                            <span class="flower-icon"></span>
+                            <span class="flower-icon"></span>
+                            <span class="ml-1">困难</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button id="cancel-add-task" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-all">
+                        取消
+                    </button>
+                    <button id="save-task" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-80 transition-all">
+                        保存
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Task Modal -->
+        <div id="edit-task-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
+                <h3 class="text-xl font-bold text-primary mb-4">编辑任务</h3>
+                
+                <input type="hidden" id="edit-task-id">
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-medium mb-2" for="edit-task-name">
+                        任务名称
+                    </label>
+                    <input type="text" id="edit-task-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="输入任务名称">
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-medium mb-2" for="edit-task-description">
+                        任务描述
+                    </label>
+                    <textarea id="edit-task-description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="描述任务内容..."></textarea>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-medium mb-2">
+                        任务难度 (小红花数量)
+                    </label>
+                    <div class="flex space-x-4">
+                        <button class="edit-difficulty-btn flex-1 py-2 border border-gray-300 rounded-lg text-center hover:border-primary transition-colors" data-value="1">
+                            <span class="flower-icon"></span>
+                            <span class="ml-1">简单</span>
+                        </button>
+                        <button class="edit-difficulty-btn flex-1 py-2 border border-gray-300 rounded-lg text-center hover:border-primary transition-colors" data-value="2">
+                            <span class="flower-icon"></span>
+                            <span class="flower-icon"></span>
+                            <span class="ml-1">中等</span>
+                        </button>
+                        <button class="edit-difficulty-btn flex-1 py-2 border border-gray-300 rounded-lg text-center hover:border-primary transition-colors" data-value="3">
+                            <span class="flower-icon"></span>
+                            <span class="flower-icon"></span>
+                            <span class="flower-icon"></span>
+                            <span class="ml-1">困难</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button id="delete-task" class="px-4 py-2 border border-red-500 rounded-lg text-red-500 hover:bg-red-50 transition-all">
+                        删除
+                    </button>
+                    <button id="cancel-edit-task" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-all">
+                        取消
+                    </button>
+                    <button id="update-task" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-80 transition-all">
+                        更新
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Check-in Success Modal -->
+        <div id="checkin-success-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 text-center">
+                <div class="flower-icon flower-icon-large animate-bounce-slow mx-auto mb-4"></div>
+                <h3 class="text-xl font-bold text-primary mb-2">打卡成功！</h3>
+                <p class="text-gray-600 mb-4">恭喜你完成任务，获得 <span id="rewarded-flowers" class="font-bold text-primary">1</span> 朵小红花！</p>
+                
+                <div class="flex justify-center">
+                    <button id="close-success-modal" class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-opacity-80 transition-all">
+                        太棒了！
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Redeem Reward Modal -->
+        <div id="redeem-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 text-center">
+                <div class="w-24 h-24 rounded-full bg-tertiary flex items-center justify-center mx-auto mb-4">
+                    <i class="fa fa-money text-white text-4xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-tertiary mb-2">兑换奖励</h3>
+                <p class="text-gray-600 mb-4">你当前可兑换 <span id="redeemable-amount" class="font-bold text-tertiary">0.00</span> 元</p>
+                
+                <div class="flex justify-center space-x-3">
+                    <button id="cancel-redeem" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-all">
+                        取消
+                    </button>
+                    <button id="confirm-redeem" class="px-4 py-2 bg-tertiary text-white rounded-lg hover:bg-opacity-80 transition-all">
+                        确认兑换
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deduct Flowers Modal -->
+        <div id="deduct-flowers-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 text-center">
+                <div class="w-24 h-24 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                    <i class="fa fa-minus-circle text-red-500 text-4xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-red-500 mb-2">扣减小红花</h3>
+                <p class="text-gray-600 mb-4">你当前有 <span id="current-flowers" class="font-bold text-primary">0</span> 朵小红花</p>
+                
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-medium mb-2" for="deduct-amount">
+                        扣减数量
+                    </label>
+                    <input type="number" id="deduct-amount" min="1" max="10" value="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-medium mb-2" for="deduct-reason">
+                        扣减原因 (可选)
+                    </label>
+                    <textarea id="deduct-reason" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入扣减原因..."></textarea>
+                </div>
+                
+                <div class="flex justify-center space-x-3">
+                    <button id="cancel-deduct" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-all">
+                        取消
+                    </button>
+                    <button id="confirm-deduct" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-opacity-80 transition-all">
+                        确认扣减
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Section -->
+        <section id="settings" class="mb-8 hidden">
+            <div class="bg-white rounded-2xl p-6 card-shadow">
+                <h2 class="text-xl font-bold text-primary mb-6">设置</h2>
+                
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-lg font-medium mb-3">数据管理</h3>
+                        <div class="space-y-3">
+                            <button id="settings-export-excel" class="w-full flex items-center justify-between p-3 bg-light rounded-lg hover:bg-gray-100 transition-all">
+                                <div class="flex items-center">
+                                    <i class="fa fa-file-excel-o text-green-500 text-xl mr-3"></i>
+                                    <span>导出Excel记录</span>
+                                </div>
+                                <i class="fa fa-chevron-right text-gray-400"></i>
+                            </button>
+                            <button id="settings-export-backup" class="w-full flex items-center justify-between p-3 bg-light rounded-lg hover:bg-gray-100 transition-all">
+                                <div class="flex items-center">
+                                    <i class="fa fa-save text-blue-500 text-xl mr-3"></i>
+                                    <span>备份所有数据</span>
+                                </div>
+                                <i class="fa fa-chevron-right text-gray-400"></i>
+                            </button>
+                            <button id="settings-import-backup" class="w-full flex items-center justify-between p-3 bg-light rounded-lg hover:bg-gray-100 transition-all">
+                                <div class="flex items-center">
+                                    <i class="fa fa-upload text-purple-500 text-xl mr-3"></i>
+                                    <span>导入备份数据</span>
+                                </div>
+                                <i class="fa fa-chevron-right text-gray-400"></i>
+                            </button>
+                            <button id="settings-set-flowers" class="w-full flex items-center justify-between p-3 bg-light rounded-lg hover:bg-gray-100 transition-all text-orange-500">
+                                <div class="flex items-center">
+                                    <i class="fa fa-paint-brush text-orange-500 text-xl mr-3"></i>
+                                    <span>初始化小红花数量</span>
+                                </div>
+                                <i class="fa fa-chevron-right text-gray-400"></i>
+                            </button>
+                            <button id="settings-clear-data" class="w-full flex items-center justify-between p-3 bg-light rounded-lg hover:bg-gray-100 transition-all text-red-500">
+                                <div class="flex items-center">
+                                    <i class="fa fa-trash text-red-500 text-xl mr-3"></i>
+                                    <span>清除所有数据</span>
+                                </div>
+                                <i class="fa fa-chevron-right text-gray-400"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-lg font-medium mb-3">关于</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between p-3 bg-light rounded-lg">
+                                <span>版本</span>
+                                <span class="text-gray-500">1.0.0</span>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-light rounded-lg">
+                                <span>开发者</span>
+                                <span class="text-gray-500">Luger</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Import Backup Modal -->
+        <div id="import-backup-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
+                <h3 class="text-xl font-bold text-primary mb-4">导入备份数据</h3>
+                
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-medium mb-2">
+                        选择备份文件
+                    </label>
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary transition-colors" id="backup-upload-area">
+                        <input type="file" id="backup-file" accept=".json" class="hidden">
+                        <i class="fa fa-file-text-o text-4xl text-gray-400 mb-2"></i>
+                        <p class="text-sm text-gray-500">点击或拖拽备份文件到此处</p>
+                        <p class="text-xs text-gray-400 mt-1">支持.json格式的备份文件</p>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button id="cancel-import" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-all">
+                        取消
+                    </button>
+                    <button id="confirm-import" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-80 transition-all" disabled="">
+                        导入
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clear Data Confirmation Modal -->
+        <div id="clear-data-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 text-center">
+                <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                    <i class="fa fa-exclamation-triangle text-red-500 text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-red-500 mb-2">确认清除所有数据？</h3>
+                <p class="text-gray-600 mb-6">此操作将删除所有任务和打卡记录，且无法恢复。</p>
+                
+                <div class="flex justify-center space-x-3">
+                    <button id="cancel-clear-data" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-all">
+                        取消
+                    </button>
+                    <button id="confirm-clear-data" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-opacity-80 transition-all">
+                        确认清除
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Set Flowers Modal -->
+        <div id="set-flowers-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
+                <h3 class="text-xl font-bold text-primary mb-4">设置小红花数量</h3>
+                
+                <div class="mb-4">
+                    <div class="flex items-center mb-2">
+                        <label class="block text-gray-700 text-sm font-medium mr-2">
+                            操作类型
+                        </label>
+                        <div class="flex space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="flowers-operation" value="add" class="form-radio text-primary" checked>
+                                <span class="ml-2 text-sm text-gray-700">增加</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="flowers-operation" value="set" class="form-radio text-primary">
+                                <span class="ml-2 text-sm text-gray-700">设置</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-medium mb-2" for="set-flowers-amount">
+                        输入数量
+                    </label>
+                    <input type="number" id="set-flowers-amount" min="0" max="9999" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="例如：50">
+                    <p class="text-xs text-gray-500 mt-1">当前小红花数量：<span id="current-flowers-amount">0</span></p>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-medium mb-2">
+                        操作说明
+                    </label>
+                    <p class="text-sm text-gray-600">
+                        <span id="operation-description">增加：输入的数量将添加到当前小红花数量中。</span><br>
+                        设置：当前小红花数量将被设置为输入的数量。
+                    </p>
+                </div>
+                
+                <div class="flex justify-center space-x-3">
+                    <button id="cancel-set-flowers" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-all">
+                        取消
+                    </button>
+                    <button id="confirm-set-flowers" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-80 transition-all">
+                        确认设置
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cleanup Old Data Modal -->
+        <div id="cleanup-data-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 text-center">
+                <div class="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-4">
+                    <i class="fa fa-trash text-orange-500 text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-orange-500 mb-2">确认清理旧数据？</h3>
+                <p class="text-gray-600 mb-4">选择要保留的最近记录天数：</p>
+                
+                <div class="flex justify-center space-x-3 mb-6">
+                    <button class="cleanup-days-btn px-4 py-2 border border-gray-300 rounded-lg hover:border-primary transition-colors" data-days="30">保留30天</button>
+                    <button class="cleanup-days-btn px-4 py-2 border border-gray-300 rounded-lg hover:border-primary transition-colors" data-days="90">保留90天</button>
+                    <button class="cleanup-days-btn px-4 py-2 border border-gray-300 rounded-lg hover:border-primary transition-colors" data-days="180">保留半年</button>
+                    <button class="cleanup-days-btn px-4 py-2 border border-gray-300 rounded-lg hover:border-primary transition-colors" data-days="365">保留一年</button>
+                </div>
+                
+                <p class="text-gray-600 mb-6">此操作将删除超过选择天数的历史记录，且无法恢复。</p>
+                
+                <div class="flex justify-center space-x-3">
+                    <button id="cancel-cleanup-data" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-all">
+                        取消
+                    </button>
+                    <button id="confirm-cleanup-data" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-opacity-80 transition-all" disabled>
+                        确认清理
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data storage
+        const AppData = {
+            tasks: [],
+            checkins: [],
+            deductions: [], // 新增：扣减记录
+            user: {
+                totalFlowers: 0,
+                redeemedAmount: 0,
+                lastCheckinDate: null,
+                consecutiveDays: 0
+            },
+            
+            // Initialize data from localStorage
+            init() {
+                const savedTasks = localStorage.getItem('flowerCheckinTasks');
+                const savedCheckins = localStorage.getItem('flowerCheckinCheckins');
+                const savedDeductions = localStorage.getItem('flowerCheckinDeductions'); // 新增
+                const savedUser = localStorage.getItem('flowerCheckinUser');
+                
+                if (savedTasks) this.tasks = JSON.parse(savedTasks);
+                if (savedCheckins) this.checkins = JSON.parse(savedCheckins);
+                if (savedDeductions) this.deductions = JSON.parse(savedDeductions); // 新增
+                if (savedUser) this.user = JSON.parse(savedUser);
+                
+                // Check for consecutive days
+                this.updateConsecutiveDays();
+            },
+            
+            // Save data to localStorage
+            save() {
+                localStorage.setItem('flowerCheckinTasks', JSON.stringify(this.tasks));
+                localStorage.setItem('flowerCheckinCheckins', JSON.stringify(this.checkins));
+                localStorage.setItem('flowerCheckinDeductions', JSON.stringify(this.deductions)); // 新增
+                localStorage.setItem('flowerCheckinUser', JSON.stringify(this.user));
+            },
+            
+            // Add a new task
+            addTask(task) {
+                const newTask = {
+                    id: Date.now().toString(),
+                    name: task.name,
+                    description: task.description,
+                    difficulty: parseInt(task.difficulty),
+                    createdAt: new Date().toISOString(),
+                    completed: false
+                };
+                
+                this.tasks.push(newTask);
+                this.save();
+                return newTask;
+            },
+            
+            // Update an existing task
+            updateTask(taskId, updatedTask) {
+                const index = this.tasks.findIndex(task => task.id === taskId);
+                if (index !== -1) {
+                    this.tasks[index] = {
+                        ...this.tasks[index],
+                        name: updatedTask.name,
+                        description: updatedTask.description,
+                        difficulty: parseInt(updatedTask.difficulty)
+                    };
+                    this.save();
+                    return this.tasks[index];
+                }
+                return null;
+            },
+            
+            // Delete a task
+            deleteTask(taskId) {
+                const taskIndex = this.tasks.findIndex(task => task.id === taskId);
+                if (taskIndex !== -1) {
+                    this.tasks.splice(taskIndex, 1);
+                    
+                    // Also delete related checkins
+                    this.checkins = this.checkins.filter(checkin => checkin.taskId !== taskId);
+                    
+                    this.save();
+                    return true;
+                }
+                return false;
+            },
+            
+            // Add a checkin
+            addCheckin(checkin) {
+                const task = this.tasks.find(t => t.id === checkin.taskId);
+                if (!task) return null;
+                
+                const newCheckin = {
+                    id: Date.now().toString(),
+                    taskId: checkin.taskId,
+                    date: new Date().toISOString(),
+                    photoUrl: checkin.photoUrl,
+                    notes: checkin.notes,
+                    flowers: task.difficulty
+                };
+                
+                this.checkins.push(newCheckin);
+                
+                // Update user stats
+                this.user.totalFlowers += task.difficulty;
+                this.user.lastCheckinDate = new Date().toISOString().split('T')[0];
+                this.updateConsecutiveDays();
+                
+                this.save();
+                return newCheckin;
+            },
+            
+            // 新增：扣减小红花（允许扣减至负数）
+            deductFlowers(amount, reason) {
+                if (amount <= 0) {
+                    return null;
+                }
+                
+                const deduction = {
+                    id: Date.now().toString(),
+                    date: new Date().toISOString(),
+                    amount: amount,
+                    reason: reason || '未指定原因'
+                };
+                
+                this.deductions.push(deduction);
+                this.user.totalFlowers -= amount;
+                
+                this.save();
+                return deduction;
+            },
+            
+            // Update consecutive days streak
+            updateConsecutiveDays() {
+                const today = new Date().toISOString().split('T')[0];
+                const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+                
+                if (this.user.lastCheckinDate === today) {
+                    // Already checked in today
+                    return;
+                } else if (this.user.lastCheckinDate === yesterday) {
+                    // Checked in yesterday, increment streak
+                    this.user.consecutiveDays++;
+                } else if (this.user.lastCheckinDate) {
+                    // Missed a day, reset streak
+                    this.user.consecutiveDays = 1;
+                } else {
+                    // First checkin
+                    this.user.consecutiveDays = 1;
+                }
+            },
+            
+            // Calculate redeemable amount
+            getRedeemableAmount() {
+                return Math.floor(this.user.totalFlowers / 5);
+            },
+            
+            // Redeem rewards
+            redeemRewards() {
+                const redeemable = this.getRedeemableAmount();
+                if (redeemable > 0) {
+                    this.user.redeemedAmount += redeemable;
+                    this.user.totalFlowers -= redeemable * 5;
+                    this.save();
+                    return redeemable;
+                }
+                return 0;
+            },
+            
+            // Export data as JSON backup
+            exportBackup() {
+                return JSON.stringify({
+                    tasks: this.tasks,
+                    checkins: this.checkins,
+                    deductions: this.deductions, // 新增
+                    user: this.user
+                }, null, 2);
+            },
+            
+            // Import data from JSON backup
+            importBackup(data) {
+                try {
+                    const backup = JSON.parse(data);
+                    
+                    if (backup.tasks && Array.isArray(backup.tasks) &&
+                        backup.checkins && Array.isArray(backup.checkins) &&
+                        backup.deductions && Array.isArray(backup.deductions) && // 新增
+                        backup.user) {
+                        
+                        this.tasks = backup.tasks;
+                        this.checkins = backup.checkins;
+                        this.deductions = backup.deductions; // 新增
+                        this.user = backup.user;
+                        
+                        this.save();
+                        return true;
+                    }
+                    return false;
+                } catch (error) {
+                    console.error('Failed to import backup:', error);
+                    return false;
+                }
+            },
+            
+            // Clear all data
+            clearAllData() {
+                this.tasks = [];
+                this.checkins = [];
+                this.deductions = []; // 新增
+                this.user = {
+                    totalFlowers: 0,
+                    redeemedAmount: 0,
+                    lastCheckinDate: null,
+                    consecutiveDays: 0
+                };
+                
+                this.save();
+            }
+        };
+
+        // DOM Elements
+        const DOM = {
+            // Main sections
+            sections: {
+                dashboard: document.getElementById('dashboard'),
+                tasks: document.getElementById('tasks'),
+                checkin: document.getElementById('checkin'),
+                history: document.getElementById('history'),
+                settings: document.getElementById('settings')
+            },
+            
+            // Navigation buttons
+            navButtons: document.querySelectorAll('.nav-btn'),
+            
+            // Dashboard elements
+            dashboard: {
+                totalFlowers: document.getElementById('total-flowers'),
+                totalRewards: document.getElementById('total-rewards'),
+                redeemedTotal: document.getElementById('redeemed-total'), // 新增
+                flowersNeeded: document.getElementById('flowers-needed'),
+                redeemBtn: document.getElementById('redeem-btn'),
+                deductFlowersBtn: document.getElementById('deduct-flowers-btn'), // 新增
+                recentTasks: document.getElementById('recent-tasks'),
+                currentDate: document.getElementById('current-date'),
+                progressCircle: document.getElementById('progress-circle')
+            },
+            
+            // Tasks elements
+            tasks: {
+                tasksList: document.getElementById('tasks-list'),
+                addTaskBtn: document.getElementById('add-task-btn'),
+                searchTasks: document.getElementById('search-tasks'),
+                viewAllTasks: document.getElementById('view-all-tasks')
+            },
+            
+            // Check-in elements
+            checkin: {
+                taskInfo: document.getElementById('checkin-task-info'),
+                taskName: document.getElementById('checkin-task-name'),
+                taskDescription: document.getElementById('checkin-task-description'),
+                taskDifficulty: document.getElementById('checkin-task-difficulty'),
+                photoUploadArea: document.getElementById('photo-upload-area'),
+                checkinPhoto: document.getElementById('checkin-photo'),
+                photoPreview: document.getElementById('photo-preview'),
+                previewImage: document.getElementById('preview-image'),
+                removePhoto: document.getElementById('remove-photo'),
+                savePhoto: document.getElementById('save-photo'), // 新增
+                checkinNotes: document.getElementById('checkin-notes'),
+                submitCheckin: document.getElementById('submit-checkin'),
+                cancelCheckin: document.getElementById('cancel-checkin'),
+                uploadSuccess: document.getElementById('upload-success'), // 新增
+                uploadMessage: document.getElementById('upload-message') // 新增
+            },
+            
+            // History elements
+            history: {
+                historyList: document.getElementById('history-list'),
+                searchHistory: document.getElementById('search-history'),
+                exportExcel: document.getElementById('export-excel'),
+                exportBackup: document.getElementById('export-backup'),
+                periodBtns: document.querySelectorAll('.history-period-btn'),
+                prevPageBtn: document.getElementById('prev-page'),
+                nextPageBtn: document.getElementById('next-page'),
+                pageNumbers: document.getElementById('page-numbers'),
+                showingRecords: document.getElementById('showing-records'),
+                totalRecords: document.getElementById('total-records'),
+                cleanupOldDataBtn: document.getElementById('cleanup-old-data')
+            },
+            
+            // Settings elements
+            settings: {
+                exportExcel: document.getElementById('settings-export-excel'),
+                exportBackup: document.getElementById('settings-export-backup'),
+                importBackup: document.getElementById('settings-import-backup'),
+                clearData: document.getElementById('settings-clear-data')
+            },
+            
+            // Modals
+            modals: {
+                addTask: document.getElementById('add-task-modal'),
+                editTask: document.getElementById('edit-task-modal'),
+                checkinSuccess: document.getElementById('checkin-success-modal'),
+                redeem: document.getElementById('redeem-modal'),
+                deductFlowers: document.getElementById('deduct-flowers-modal'), // 新增
+                importBackup: document.getElementById('import-backup-modal'),
+                clearData: document.getElementById('clear-data-modal'),
+                cleanupData: document.getElementById('cleanup-data-modal')
+            },
+            
+            // Cleanup Data Modal elements
+            cleanupDataModal: {
+                daysBtns: document.querySelectorAll('.cleanup-days-btn'),
+                cancelBtn: document.getElementById('cancel-cleanup-data'),
+                confirmBtn: document.getElementById('confirm-cleanup-data')
+            },
+            
+            // Add Task Modal elements
+            addTaskModal: {
+                taskName: document.getElementById('task-name'),
+                taskDescription: document.getElementById('task-description'),
+                difficultyBtns: document.querySelectorAll('.difficulty-btn'),
+                cancelBtn: document.getElementById('cancel-add-task'),
+                saveBtn: document.getElementById('save-task')
+            },
+            
+            // Edit Task Modal elements
+            editTaskModal: {
+                taskId: document.getElementById('edit-task-id'),
+                taskName: document.getElementById('edit-task-name'),
+                taskDescription: document.getElementById('edit-task-description'),
+                difficultyBtns: document.querySelectorAll('.edit-difficulty-btn'),
+                cancelBtn: document.getElementById('cancel-edit-task'),
+                deleteBtn: document.getElementById('delete-task'),
+                updateBtn: document.getElementById('update-task')
+            },
+            
+            // Check-in Success Modal elements
+            checkinSuccessModal: {
+                rewardedFlowers: document.getElementById('rewarded-flowers'),
+                closeBtn: document.getElementById('close-success-modal')
+            },
+            
+            // Redeem Modal elements
+            redeemModal: {
+                redeemableAmount: document.getElementById('redeemable-amount'),
+                cancelBtn: document.getElementById('cancel-redeem'),
+                confirmBtn: document.getElementById('confirm-redeem')
+            },
+            
+            // 新增：扣减小红花 Modal elements
+            deductFlowersModal: {
+                currentFlowers: document.querySelector('#deduct-flowers-modal #current-flowers'),
+                deductAmount: document.querySelector('#deduct-flowers-modal #deduct-amount'),
+                deductReason: document.querySelector('#deduct-flowers-modal #deduct-reason'),
+                cancelBtn: document.querySelector('#deduct-flowers-modal #cancel-deduct'),
+                confirmBtn: document.querySelector('#deduct-flowers-modal #confirm-deduct')
+            },
+            
+            // Import Backup Modal elements
+            importBackupModal: {
+                backupUploadArea: document.getElementById('backup-upload-area'),
+                backupFile: document.getElementById('backup-file'),
+                cancelBtn: document.getElementById('cancel-import'),
+                confirmBtn: document.getElementById('confirm-import')
+            },
+            
+            // Clear Data Modal elements
+            clearDataModal: {
+                cancelBtn: document.getElementById('cancel-clear-data'),
+                confirmBtn: document.getElementById('confirm-clear-data')
+            },
+            
+            // Set Flowers Modal elements
+            setFlowersModal: {
+                modal: document.getElementById('set-flowers-modal'),
+                amountInput: document.getElementById('set-flowers-amount'),
+                currentAmountEl: document.getElementById('current-flowers-amount'),
+                cancelBtn: document.getElementById('cancel-set-flowers'),
+                confirmBtn: document.getElementById('confirm-set-flowers')
+            },
+            
+            // Loading screen
+            loadingScreen: document.getElementById('loading-screen'),
+            app: document.getElementById('app')
+        };
+
+        // App Logic
+        const App = {
+            // Current state
+            state: {
+                activeSection: 'dashboard',
+                selectedTaskId: null,
+                selectedDifficulty: 1,
+                selectedEditDifficulty: 1,
+                photoPreview: null,
+                importBackupData: null,
+                // History pagination state
+                history: {
+                    currentPage: 1,
+                    itemsPerPage: 10,
+                    totalItems: 0,
+                    totalPages: 1,
+                    period: '7',
+                    searchTerm: '',
+                    selectedDays: null
+                }
+            },
+            
+            // Initialize the app
+            init() {
+                // Initialize data
+                AppData.init();
+                
+                // Reset history state
+                this.resetHistoryState();
+                
+                // Set current date
+                this.setCurrentDate();
+                
+                // Update dashboard
+                this.updateDashboard();
+                
+                // Render tasks
+                this.renderTasks();
+                
+                // Render history
+                this.renderHistory();
+                
+                // Setup event listeners
+                this.setupEventListeners();
+                
+                // Show app and hide loading screen
+                DOM.loadingScreen.classList.add('hidden');
+                DOM.app.classList.remove('hidden');
+            },
+            
+            // Set current date
+            setCurrentDate() {
+                const now = new Date();
+                const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+                DOM.dashboard.currentDate.textContent = now.toLocaleDateString('zh-CN', options);
+            },
+            
+            // Update dashboard
+            updateDashboard() {
+                // Update total flowers
+                DOM.dashboard.totalFlowers.textContent = AppData.user.totalFlowers;
+                
+                // Update total rewards (只显示当前可兑换金额)
+                const redeemable = AppData.getRedeemableAmount();
+                DOM.dashboard.totalRewards.textContent = redeemable.toFixed(2);
+                
+                // Update redeemed total
+                DOM.dashboard.redeemedTotal.textContent = AppData.user.redeemedAmount.toFixed(2);
+                
+                // Update flowers needed for next reward
+                const flowersNeeded = 5 - (AppData.user.totalFlowers % 5);
+                DOM.dashboard.flowersNeeded.textContent = flowersNeeded === 5 ? 0 : flowersNeeded;
+                
+                // Update progress circle
+                this.updateProgressCircle();
+                
+                // Render recent tasks
+                this.renderRecentTasks();
+                
+                // Update deduct button state - 允许在负数状态下继续扣减
+                DOM.dashboard.deductFlowersBtn.disabled = false;
+            },
+            
+            // Update progress circle
+            updateProgressCircle() {
+                const flowers = AppData.user.totalFlowers;
+                const modulo = flowers % 5;
+                const percentage = modulo / 5;
+                
+                const circle = DOM.dashboard.progressCircle;
+                const radius = circle.r.baseVal.value;
+                const circumference = radius * 2 * Math.PI;
+                
+                circle.style.strokeDasharray = `${circumference} ${circumference}`;
+                const offset = circumference - (percentage * circumference);
+                circle.style.strokeDashoffset = offset;
+            },
+            
+            // Render recent tasks
+            renderRecentTasks() {
+                const recentTasks = [...AppData.tasks]
+                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                    .slice(0, 3);
+                
+                const container = DOM.dashboard.recentTasks;
+                container.innerHTML = '';
+                
+                if (recentTasks.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center text-gray-500 py-4">
+                            暂无任务，点击下方按钮添加任务
+                        </div>
+                    `;
+                    return;
+                }
+                
+                recentTasks.forEach(task => {
+                    const taskElement = document.createElement('div');
+                    taskElement.className = 'flex items-center justify-between p-3 bg-light rounded-lg';
+                    
+                    const difficultyStars = Array(task.difficulty).fill().map(() => `<span class="flower-icon"></span>`).join('');
+                    
+                    taskElement.innerHTML = `
+                        <div>
+                            <h4 class="font-medium">${task.name}</h4>
+                            <div class="flex items-center mt-1">
+                                <span class="text-xs text-gray-500">难度：</span>
+                                <div class="flex ml-1">
+                                    ${difficultyStars}
+                                </div>
+                            </div>
+                        </div>
+                        <button class="checkin-task-btn bg-primary hover:bg-opacity-80 text-white px-3 py-1 rounded-full text-xs font-medium transition-all" data-task-id="${task.id}">
+                            打卡
+                        </button>
+                    `;
+                    
+                    container.appendChild(taskElement);
+                });
+                
+                // Add event listeners to checkin buttons
+                document.querySelectorAll('.checkin-task-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const taskId = btn.dataset.taskId;
+                        this.navigateToCheckin(taskId);
+                    });
+                });
+            },
+            
+            // Render tasks
+            renderTasks(searchTerm = '') {
+                const tasks = AppData.tasks.filter(task => 
+                    task.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                    task.description.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+                
+                const container = DOM.tasks.tasksList;
+                container.innerHTML = '';
+                
+                if (tasks.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center text-gray-500 py-4">
+                            暂无任务，点击上方按钮添加任务
+                        </div>
+                    `;
+                    return;
+                }
+                
+                tasks.forEach(task => {
+                    const taskElement = document.createElement('div');
+                    taskElement.className = 'p-4 bg-light rounded-lg';
+                    
+                    const difficultyStars = Array(task.difficulty).fill().map(() => `<span class="flower-icon"></span>`).join('');
+                    
+                    taskElement.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <h4 class="font-medium">${task.name}</h4>
+                            <div class="flex space-x-1">
+                                <button class="edit-task-btn text-gray-400 hover:text-primary" data-task-id="${task.id}">
+                                    <i class="fa fa-pencil"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">${task.description}</p>
+                        <div class="flex items-center justify-between mt-3">
+                            <div class="flex items-center">
+                                <span class="text-xs text-gray-500">难度：</span>
+                                <div class="flex ml-1">
+                                    ${difficultyStars}
+                                </div>
+                            </div>
+                            <button class="checkin-task-btn bg-primary hover:bg-opacity-80 text-white px-3 py-1 rounded-full text-xs font-medium transition-all" data-task-id="${task.id}">
+                                打卡
+                            </button>
+                        </div>
+                    `;
+                    
+                    container.appendChild(taskElement);
+                });
+                
+                // Add event listeners to checkin and edit buttons
+                document.querySelectorAll('.checkin-task-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const taskId = btn.dataset.taskId;
+                        this.navigateToCheckin(taskId);
+                    });
+                });
+                
+                document.querySelectorAll('.edit-task-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const taskId = btn.dataset.taskId;
+                        this.openEditTaskModal(taskId);
+                    });
+                });
+            },
+            
+            // Reset history state
+            resetHistoryState() {
+                this.state.history = {
+                    currentPage: 1,
+                    itemsPerPage: 10,
+                    totalItems: 0,
+                    totalPages: 1,
+                    period: '7',
+                    searchTerm: '',
+                    selectedDays: null
+                };
+            },
+            
+            // Get filtered history items
+            getFilteredHistoryItems() {
+                const { period, searchTerm } = this.state.history;
+                
+                // Combine checkins and deductions for history
+                const historyItems = [
+                    ...AppData.checkins.map(checkin => ({
+                        ...checkin,
+                        type: 'checkin',
+                        task: AppData.tasks.find(t => t.id === checkin.taskId)
+                    })),
+                    ...AppData.deductions.map(deduction => ({
+                        ...deduction,
+                        type: 'deduction'
+                    }))
+                ].sort((a, b) => new Date(b.date) - new Date(a.date))
+                 .filter(item => {
+                    // Filter by period
+                    if (period !== 'all') {
+                        const periodDays = parseInt(period);
+                        const periodStart = new Date();
+                        periodStart.setDate(periodStart.getDate() - periodDays);
+                        const itemDate = new Date(item.date);
+                        
+                        if (itemDate < periodStart) {
+                            return false;
+                        }
+                    }
+                    
+                    // Filter by search term
+                    if (searchTerm) {
+                        if (item.type === 'checkin') {
+                            if (!item.task) return false;
+                            return item.task.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                   (item.notes && item.notes.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                                   new Date(item.date).toLocaleDateString('zh-CN').includes(searchTerm);
+                        } else {
+                            return (item.reason && item.reason.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                                   new Date(item.date).toLocaleDateString('zh-CN').includes(searchTerm) ||
+                                   item.amount.toString().includes(searchTerm);
+                        }
+                    }
+                    
+                    return true;
+                });
+                
+                return historyItems;
+            },
+            
+            // Render history with pagination
+            renderHistory() {
+                const historyItems = this.getFilteredHistoryItems();
+                const { currentPage, itemsPerPage } = this.state.history;
+                
+                // Update total items
+                this.state.history.totalItems = historyItems.length;
+                this.state.history.totalPages = Math.ceil(historyItems.length / itemsPerPage);
+                
+                // Update pagination
+                this.updatePagination();
+                
+                // Update record count display
+                DOM.history.showingRecords.textContent = Math.min(currentPage * itemsPerPage, historyItems.length);
+                DOM.history.totalRecords.textContent = historyItems.length;
+                
+                const container = DOM.history.historyList;
+                container.innerHTML = '';
+                
+                if (historyItems.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center text-gray-500 py-4">
+                            暂无记录
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Get items for current page
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                const endIndex = Math.min(startIndex + itemsPerPage, historyItems.length);
+                const pageItems = historyItems.slice(startIndex, endIndex);
+                
+                pageItems.forEach(item => {
+                    const historyElement = document.createElement('div');
+                    historyElement.className = 'p-4 bg-light rounded-lg';
+                    
+                    const itemDate = new Date(item.date);
+                    const formattedDate = itemDate.toLocaleDateString('zh-CN', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    if (item.type === 'checkin') {
+                        historyElement.innerHTML += `
+                                <div class="flex justify-between items-start">
+                                    <h4 class="font-medium">${item.task.name}</h4>
+                                    <div class="flex items-center text-green-500">
+                                        <i class="fa fa-plus-circle mr-1"></i>
+                                        <span class="font-bold">${item.flowers}</span>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">${formattedDate} · 打卡成功</p>
+                                ${item.photoUrl ? `
+                                    <div class="mt-3 relative w-full" style="padding-top: 75%;">
+                                        <img src="${item.photoUrl}" alt="打卡照片" class="absolute top-0 left-0 w-full h-full object-cover rounded-lg">
+                                    </div>
+                                ` : ''}
+                                ${item.notes ? `
+                                    <p class="text-sm text-gray-600 mt-3">${item.notes}</p>
+                                ` : ''}
+                        `;
+                    } else {
+                        historyElement.innerHTML += `
+                                <div class="flex justify-between items-start">
+                                    <h4 class="font-medium text-red-500">小红花扣减</h4>
+                                    <div class="flex items-center text-red-500">
+                                        <i class="fa fa-minus-circle mr-1"></i>
+                                        <span class="font-bold">${item.amount}</span>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">${formattedDate}</p>
+                                <p class="text-sm text-gray-600 mt-3">${item.reason}</p>
+                        `;
+                    }
+                    
+                    container.appendChild(historyElement);
+                });
+            },
+            
+            // Update pagination controls
+            updatePagination() {
+                const { currentPage, totalPages } = this.state.history;
+                
+                // Update prev/next buttons
+                DOM.history.prevPageBtn.disabled = currentPage === 1;
+                DOM.history.nextPageBtn.disabled = currentPage === totalPages;
+                
+                // Update page numbers
+                const pageNumbersContainer = DOM.history.pageNumbers;
+                pageNumbersContainer.innerHTML = '';
+                
+                // Calculate visible page numbers (max 5 pages)
+                let startPage = Math.max(1, currentPage - 2);
+                let endPage = Math.min(totalPages, currentPage + 2);
+                
+                // Adjust if we're at the start or end
+                if (endPage - startPage + 1 < 5 && totalPages >= 5) {
+                    if (startPage === 1) {
+                        endPage = 5;
+                    } else if (endPage === totalPages) {
+                        startPage = totalPages - 4;
+                    }
+                }
+                
+                // Add page buttons
+                for (let i = startPage; i <= endPage; i++) {
+                    const pageBtn = document.createElement('button');
+                    pageBtn.className = `px-3 py-1 border-t border-b border-gray-300 ${i === currentPage ? 'text-primary font-medium' : 'text-gray-500'}`;
+                    pageBtn.textContent = i;
+                    pageBtn.addEventListener('click', () => {
+                        this.navigateToHistoryPage(i);
+                    });
+                    pageNumbersContainer.appendChild(pageBtn);
+                }
+            },
+            
+            // Navigate to specific history page
+            navigateToHistoryPage(page) {
+                if (page < 1 || page > this.state.history.totalPages) {
+                    return;
+                }
+                
+                this.state.history.currentPage = page;
+                this.renderHistory();
+                
+                // Scroll to top of history list
+                DOM.history.historyList.scrollTop = 0;
+            },
+            
+            // Setup event listeners
+            setupEventListeners() {
+                // Navigation buttons
+                DOM.navButtons.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const target = btn.dataset.target;
+                        this.navigateTo(target);
+                    });
+                });
+                
+                // Dashboard elements
+                DOM.dashboard.redeemBtn.addEventListener('click', () => {
+                    this.openRedeemModal();
+                });
+                
+                // 新增：扣减小红花按钮
+                DOM.dashboard.deductFlowersBtn.addEventListener('click', () => {
+                    this.openDeductFlowersModal();
+                });
+                
+                DOM.tasks.viewAllTasks.addEventListener('click', () => {
+                    this.navigateTo('tasks');
+                });
+                
+                // Tasks elements
+                DOM.tasks.addTaskBtn.addEventListener('click', () => {
+                    this.openAddTaskModal();
+                });
+                
+                DOM.tasks.searchTasks.addEventListener('input', (e) => {
+                    this.renderTasks(e.target.value);
+                });
+                
+                // Check-in elements
+                DOM.checkin.photoUploadArea.addEventListener('click', () => {
+                    DOM.checkin.checkinPhoto.click();
+                });
+                
+                DOM.checkin.checkinPhoto.addEventListener('change', (e) => {
+                    this.handlePhotoUpload(e);
+                });
+                
+                // Task select dropdown change event
+                document.getElementById('checkin-task-select').addEventListener('change', (e) => {
+                    const taskId = e.target.value;
+                    if (taskId) {
+                        this.state.selectedTaskId = taskId;
+                        this.prepareCheckinSection();
+                    } else {
+                        this.state.selectedTaskId = null;
+                        DOM.checkin.taskName.textContent = '选择一个任务';
+                        DOM.checkin.taskDescription.textContent = '请从任务列表中选择一个任务进行打卡';
+                        DOM.checkin.taskDifficulty.innerHTML = '';
+                        DOM.checkin.submitCheckin.disabled = true;
+                    }
+                });
+                
+                DOM.checkin.removePhoto.addEventListener('click', () => {
+                    this.removePhotoPreview();
+                });
+                
+                // 新增：保存照片按钮
+                DOM.checkin.savePhoto.addEventListener('click', () => {
+                    if (this.state.photoPreview) {
+                        // 创建一个链接并触发下载
+                        const link = document.createElement('a');
+                        link.href = this.state.photoPreview;
+                        link.download = 'screenshot_' + new Date().getTime() + '.png';
+                        link.click();
+                        
+                        // 更新提示信息
+                        DOM.checkin.uploadMessage.textContent = '照片已保存！';
+                        DOM.checkin.uploadSuccess.classList.remove('hidden');
+                        
+                        // 3秒后自动隐藏提示
+                        setTimeout(() => {
+                            DOM.checkin.uploadSuccess.classList.add('hidden');
+                        }, 3000);
+                    }
+                });
+                
+                DOM.checkin.submitCheckin.addEventListener('click', () => {
+                    this.submitCheckin();
+                });
+                
+                DOM.checkin.cancelCheckin.addEventListener('click', () => {
+                    this.navigateTo('dashboard');
+                });
+                
+                // History elements
+                DOM.history.searchHistory.addEventListener('input', (e) => {
+                    this.state.history.searchTerm = e.target.value;
+                    this.state.history.currentPage = 1;
+                    this.renderHistory();
+                });
+                
+                DOM.history.exportExcel.addEventListener('click', () => {
+                    this.exportToExcel();
+                });
+                
+                DOM.history.exportBackup.addEventListener('click', () => {
+                    this.exportBackup();
+                });
+                
+                // History period buttons
+                DOM.history.periodBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        // Update button styles
+                        DOM.history.periodBtns.forEach(b => {
+                            b.classList.remove('bg-primary', 'text-white');
+                            b.classList.add('bg-gray-200', 'text-gray-700');
+                        });
+                        btn.classList.remove('bg-gray-200', 'text-gray-700');
+                        btn.classList.add('bg-primary', 'text-white');
+                        
+                        // Update period
+                        this.state.history.period = btn.dataset.days;
+                        this.state.history.currentPage = 1;
+                        this.renderHistory();
+                    });
+                });
+                
+                // Pagination buttons
+                DOM.history.prevPageBtn.addEventListener('click', () => {
+                    if (this.state.history.currentPage > 1) {
+                        this.state.history.currentPage--;
+                        this.renderHistory();
+                    }
+                });
+                
+                DOM.history.nextPageBtn.addEventListener('click', () => {
+                    if (this.state.history.currentPage < this.state.history.totalPages) {
+                        this.state.history.currentPage++;
+                        this.renderHistory();
+                    }
+                });
+                
+                // Cleanup old data button
+                DOM.history.cleanupOldDataBtn.addEventListener('click', () => {
+                    this.openCleanupDataModal();
+                });
+                
+                // Settings elements
+                DOM.settings.exportExcel.addEventListener('click', () => {
+                    this.exportToExcel();
+                });
+                
+                DOM.settings.exportBackup.addEventListener('click', () => {
+                    this.exportBackup();
+                });
+                
+                DOM.settings.importBackup.addEventListener('click', () => {
+                    this.openImportBackupModal();
+                });
+                
+                DOM.settings.clearData.addEventListener('click', () => {
+                    this.openClearDataModal();
+                });
+                
+                // Add Task Modal elements
+                DOM.addTaskModal.difficultyBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.selectDifficulty(btn, 'add');
+                    });
+                });
+                
+                DOM.addTaskModal.cancelBtn.addEventListener('click', () => {
+                    this.closeAddTaskModal();
+                });
+                
+                DOM.addTaskModal.saveBtn.addEventListener('click', () => {
+                    this.saveTask();
+                });
+                
+                // Edit Task Modal elements
+                DOM.editTaskModal.difficultyBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.selectDifficulty(btn, 'edit');
+                    });
+                });
+                
+                DOM.editTaskModal.cancelBtn.addEventListener('click', () => {
+                    this.closeEditTaskModal();
+                });
+                
+                DOM.editTaskModal.deleteBtn.addEventListener('click', () => {
+                    this.deleteTask();
+                });
+                
+                DOM.editTaskModal.updateBtn.addEventListener('click', () => {
+                    this.updateTask();
+                });
+                
+                // Check-in Success Modal elements
+                DOM.checkinSuccessModal.closeBtn.addEventListener('click', () => {
+                    this.closeCheckinSuccessModal();
+                });
+                
+                // Redeem Modal elements
+                DOM.redeemModal.cancelBtn.addEventListener('click', () => {
+                    this.closeRedeemModal();
+                });
+                
+                DOM.redeemModal.confirmBtn.addEventListener('click', () => {
+                    this.confirmRedeem();
+                });
+                
+                // 新增：扣减小红花 Modal elements
+                DOM.deductFlowersModal.cancelBtn.addEventListener('click', () => {
+                    this.closeDeductFlowersModal();
+                });
+                
+                DOM.deductFlowersModal.confirmBtn.addEventListener('click', () => {
+                    this.confirmDeductFlowers();
+                });
+                
+                // Import Backup Modal elements
+                DOM.importBackupModal.backupUploadArea.addEventListener('click', () => {
+                    DOM.importBackupModal.backupFile.click();
+                });
+                
+                DOM.importBackupModal.backupFile.addEventListener('change', (e) => {
+                    this.handleBackupUpload(e);
+                });
+                
+                DOM.importBackupModal.cancelBtn.addEventListener('click', () => {
+                    this.closeImportBackupModal();
+                });
+                
+                DOM.importBackupModal.confirmBtn.addEventListener('click', () => {
+                    this.confirmImportBackup();
+                });
+                
+                // Clear Data Modal elements
+                DOM.clearDataModal.cancelBtn.addEventListener('click', () => {
+                    this.closeClearDataModal();
+                });
+                
+                DOM.clearDataModal.confirmBtn.addEventListener('click', () => {
+                    this.confirmClearData();
+                });
+                
+                // Set Flowers Modal elements
+                document.getElementById('settings-set-flowers').addEventListener('click', () => {
+                    this.openSetFlowersModal();
+                });
+                
+                DOM.setFlowersModal.cancelBtn.addEventListener('click', () => {
+                    this.closeSetFlowersModal();
+                });
+                
+                DOM.setFlowersModal.confirmBtn.addEventListener('click', () => {
+                    this.confirmSetFlowers();
+                });
+                
+                // Flowers operation type change event
+                document.querySelectorAll('input[name="flowers-operation"]').forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        const operationType = e.target.value;
+                        const descriptionEl = document.getElementById('operation-description');
+                        
+                        if (operationType === 'add') {
+                            descriptionEl.textContent = '增加：输入的数量将添加到当前小红花数量中。';
+                        } else {
+                            descriptionEl.textContent = '设置：当前小红花数量将被设置为输入的数量。';
+                        }
+                    });
+                });
+                
+                // Cleanup Data Modal elements
+                DOM.cleanupDataModal.daysBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.selectCleanupDays(btn);
+                    });
+                });
+                
+                DOM.cleanupDataModal.cancelBtn.addEventListener('click', () => {
+                    this.closeCleanupDataModal();
+                });
+                
+                DOM.cleanupDataModal.confirmBtn.addEventListener('click', () => {
+                    this.confirmCleanupData();
+                });
+                
+                // Drag and drop for photo upload
+                const photoUploadArea = DOM.checkin.photoUploadArea;
+                photoUploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    photoUploadArea.classList.add('border-primary');
+                });
+                
+                photoUploadArea.addEventListener('dragleave', () => {
+                    photoUploadArea.classList.remove('border-primary');
+                });
+                
+                photoUploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    photoUploadArea.classList.remove('border-primary');
+                    
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                        const file = e.dataTransfer.files[0];
+                        if (file.type.startsWith('image/')) {
+                            DOM.checkin.checkinPhoto.files = e.dataTransfer.files;
+                            this.handlePhotoUpload({ target: { files: e.dataTransfer.files } });
+                        }
+                    }
+                });
+                
+                // 新增：粘贴截图功能
+                document.addEventListener('paste', (e) => {
+                    // 检查剪贴板中是否有图片
+                    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                    
+                    for (let item of items) {
+                        if (item.kind === 'file') {
+                            const file = item.getAsFile();
+                            
+                            // 检查是否为图片类型
+                            if (file.type.startsWith('image/')) {
+                                // 创建一个虚拟的input事件
+                                const event = {
+                                    target: {
+                                        files: [file]
+                                    }
+                                };
+                                
+                                // 处理粘贴的图片
+                                this.handlePhotoUpload(event, true);
+                                break;
+                            }
+                        }
+                    }
+                });
+                
+                // Drag and drop for backup upload
+                const backupUploadArea = DOM.importBackupModal.backupUploadArea;
+                backupUploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    backupUploadArea.classList.add('border-primary');
+                });
+                
+                backupUploadArea.addEventListener('dragleave', () => {
+                    backupUploadArea.classList.remove('border-primary');
+                });
+                
+                backupUploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    backupUploadArea.classList.remove('border-primary');
+                    
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                        const file = e.dataTransfer.files[0];
+                        if (file.type === 'application/json' || file.name.endsWith('.json')) {
+                            DOM.importBackupModal.backupFile.files = e.dataTransfer.files;
+                            this.handleBackupUpload({ target: { files: e.dataTransfer.files } });
+                        }
+                    }
+                });
+            },
+            
+            // Navigate to section
+            navigateTo(section) {
+                // Update active section
+                this.state.activeSection = section;
+                
+                // Hide all sections
+                Object.values(DOM.sections).forEach(s => s.classList.add('hidden'));
+                
+                // Show selected section
+                DOM.sections[section].classList.remove('hidden');
+                
+                // Update navigation buttons
+                DOM.navButtons.forEach(btn => {
+                    if (btn.dataset.target === section) {
+                        btn.classList.add('text-primary');
+                        btn.classList.remove('text-gray-400');
+                    } else {
+                        btn.classList.remove('text-primary');
+                        btn.classList.add('text-gray-400');
+                    }
+                });
+                
+                // Special handling for check-in section
+                if (section === 'checkin') {
+                    this.prepareCheckinSection();
+                }
+                
+                // Scroll to top
+                window.scrollTo(0, 0);
+            },
+            
+            // Navigate to check-in section with selected task
+            navigateToCheckin(taskId) {
+                this.state.selectedTaskId = taskId;
+                this.navigateTo('checkin');
+            },
+            
+            // Populate task select dropdown
+            populateTaskSelect() {
+                const select = document.getElementById('checkin-task-select');
+                const tasks = AppData.tasks;
+                
+                // Clear existing options except the first one
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+                
+                // Add tasks to dropdown
+                tasks.forEach(task => {
+                    const option = document.createElement('option');
+                    option.value = task.id;
+                    option.textContent = task.name;
+                    select.appendChild(option);
+                });
+            },
+            
+            // Prepare check-in section
+            prepareCheckinSection() {
+                // Reset form
+                DOM.checkin.checkinNotes.value = '';
+                this.removePhotoPreview();
+                
+                // Populate task select dropdown
+                this.populateTaskSelect();
+                
+                // If no task selected, show prompt
+                if (!this.state.selectedTaskId) {
+                    DOM.checkin.taskName.textContent = '选择一个任务';
+                    DOM.checkin.taskDescription.textContent = '请从任务列表中选择一个任务进行打卡';
+                    DOM.checkin.taskDifficulty.innerHTML = '';
+                    DOM.checkin.submitCheckin.disabled = true;
+                    return;
+                }
+                
+                // Get task details
+                const task = AppData.tasks.find(t => t.id === this.state.selectedTaskId);
+                if (!task) {
+                    this.navigateTo('dashboard');
+                    return;
+                }
+                
+                // Update task info
+                DOM.checkin.taskName.textContent = task.name;
+                DOM.checkin.taskDescription.textContent = task.description;
+                
+                // Update difficulty stars
+                const difficultyStars = Array(task.difficulty).fill().map(() => `<span class="flower-icon"></span>`).join('');
+                DOM.checkin.taskDifficulty.innerHTML = difficultyStars;
+                
+                // Enable submit button if photo is selected
+                DOM.checkin.submitCheckin.disabled = !this.state.photoPreview;
+            },
+            
+            // Handle photo upload
+            handlePhotoUpload(e, isPasted = false) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                // Check if file is an image
+                if (!file.type.startsWith('image/')) {
+                    alert('请上传图片文件');
+                    return;
+                }
+                
+                // Create preview
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    // 创建图片对象
+                    const img = new Image();
+                    img.onload = () => {
+                        // 目标尺寸：640*480 (4:3比例)
+                        const targetWidth = 640;
+                        const targetHeight = 480;
+                        
+                        // 创建临时canvas用于第一次缩放
+                        const tempCanvas = document.createElement('canvas');
+                        let tempWidth, tempHeight;
+                        
+                        // 计算缩放比例
+                        const widthRatio = targetWidth / img.width;
+                        const heightRatio = targetHeight / img.height;
+                        
+                        // 根据图片缩略图尺寸
+                        if (widthRatio < heightRatio) {
+                            // 图片较宽，按宽度缩放
+                            tempWidth = targetWidth;
+                            tempHeight = img.height * widthRatio;
+                        } else {
+                            // 图片较高，按高度缩放
+                            tempHeight = targetHeight;
+                            tempWidth = img.width * heightRatio;
+                        }
+                        
+                        tempCanvas.width = tempWidth;
+                        tempCanvas.height = tempHeight;
+                        
+                        // 第一次绘制：将图片缩放到到临时canvas（等比例缩放）
+                        const tempCtx = tempCanvas.getContext('2d');
+                        tempCtx.drawImage(img, 0, 0, tempWidth, tempHeight);
+                        
+                        // 创建最终canvas用于裁切
+                        const canvas = document.createElement('canvas');
+                        canvas.width = targetWidth;
+                        canvas.height = targetHeight;
+                        
+                        // 计算居中裁切的位置
+                        const cropX = (tempWidth - targetWidth) / 2;
+                        const cropY = (tempHeight - targetHeight) / 2;
+                        
+                        // 第二次绘制：从临时canvas裁切出目标尺寸的图片
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(
+                            tempCanvas, 
+                            cropX, cropY, targetWidth, targetHeight, // 从临时canvas裁切的区域
+                            0, 0, targetWidth, targetHeight // 绘制到最终canvas的位置和大小
+                        );
+                        
+                        // 尝试压缩图片到80KB以下
+                        let quality = 0.9; // 提高初始质量
+                        let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                        
+                        // 如果图片大小超过80KB，降低质量继续压缩，但不低于0.5以保证更好的清晰度
+                        while (this.dataUrlToSize(compressedDataUrl) > 80 * 1024 && quality > 0.5) {
+                            quality -= 0.05; // 更小的步长以获得更精细的质量控制
+                            compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                        }
+                        
+                        // 更新预览
+                        this.state.photoPreview = compressedDataUrl;
+                        DOM.checkin.previewImage.src = this.state.photoPreview;
+                        DOM.checkin.photoPreview.classList.remove('hidden');
+                        
+                        // 显示上传成功提示
+                        DOM.checkin.uploadMessage.textContent = isPasted ? '粘贴成功！' : '上传成功！';
+                        DOM.checkin.uploadSuccess.classList.remove('hidden');
+                        
+                        // 显示图片信息
+                        const fileSize = this.dataUrlToSize(compressedDataUrl);
+                        const sizeInfo = `${(fileSize / 1024).toFixed(1)}KB`;
+                        DOM.checkin.uploadMessage.textContent += ` (已压缩至 ${sizeInfo}, 目标80KB)`;
+                        
+                        // 3秒后自动隐藏提示
+                        setTimeout(() => {
+                            DOM.checkin.uploadSuccess.classList.add('hidden');
+                        }, 3000);
+                        
+                        // Enable submit button
+                        DOM.checkin.submitCheckin.disabled = false;
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            },
+            
+            // 将DataURL转换为字节大小
+            dataUrlToSize(dataUrl) {
+                // DataURL格式: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...
+                const base64 = dataUrl.split(',')[1];
+                // Base64字符串的长度是原始二进制数据的4/3
+                return Math.ceil((base64.length * 3) / 4);
+            },
+            
+            // Remove photo preview
+            removePhotoPreview() {
+                this.state.photoPreview = null;
+                DOM.checkin.checkinPhoto.value = '';
+                DOM.checkin.photoPreview.classList.add('hidden');
+                DOM.checkin.previewImage.src = '';
+                DOM.checkin.uploadSuccess.classList.add('hidden');
+                
+                // Disable submit button
+                DOM.checkin.submitCheckin.disabled = true;
+            },
+            
+            // Submit check-in
+            submitCheckin() {
+                if (!this.state.selectedTaskId || !this.state.photoPreview) {
+                    alert('请选择任务并上传照片');
+                    return;
+                }
+                
+                // Add checkin to data
+                const checkin = {
+                    taskId: this.state.selectedTaskId,
+                    photoUrl: this.state.photoPreview,
+                    notes: DOM.checkin.checkinNotes.value.trim()
+                };
+                
+                const newCheckin = AppData.addCheckin(checkin);
+                if (!newCheckin) {
+                    alert('打卡失败，请重试');
+                    return;
+                }
+                
+                // Show success modal
+                const task = AppData.tasks.find(t => t.id === this.state.selectedTaskId);
+                DOM.checkinSuccessModal.rewardedFlowers.textContent = task.difficulty;
+                this.openCheckinSuccessModal();
+                
+                // Update UI
+                this.updateDashboard();
+                this.renderHistory();
+            },
+            
+            // Open Add Task Modal
+            openAddTaskModal() {
+                // Reset form
+                DOM.addTaskModal.taskName.value = '';
+                DOM.addTaskModal.taskDescription.value = '';
+                this.state.selectedDifficulty = 1;
+                
+                // Reset difficulty buttons
+                DOM.addTaskModal.difficultyBtns.forEach(btn => {
+                    if (btn.dataset.value === '1') {
+                        btn.classList.add('border-primary', 'bg-primary', 'bg-opacity-10');
+                    } else {
+                        btn.classList.remove('border-primary', 'bg-primary', 'bg-opacity-10');
+                    }
+                });
+                
+                // Show modal
+                DOM.modals.addTask.classList.remove('hidden');
+            },
+            
+            // Close Add Task Modal
+            closeAddTaskModal() {
+                DOM.modals.addTask.classList.add('hidden');
+            },
+            
+            // Select difficulty
+            selectDifficulty(btn, type) {
+                const value = btn.dataset.value;
+                
+                if (type === 'add') {
+                    this.state.selectedDifficulty = parseInt(value);
+                    
+                    // Update buttons
+                    DOM.addTaskModal.difficultyBtns.forEach(b => {
+                        if (b.dataset.value === value) {
+                            b.classList.add('border-primary', 'bg-primary', 'bg-opacity-10');
+                        } else {
+                            b.classList.remove('border-primary', 'bg-primary', 'bg-opacity-10');
+                        }
+                    });
+                } else {
+                    this.state.selectedEditDifficulty = parseInt(value);
+                    
+                    // Update buttons
+                    DOM.editTaskModal.difficultyBtns.forEach(b => {
+                        if (b.dataset.value === value) {
+                            b.classList.add('border-primary', 'bg-primary', 'bg-opacity-10');
+                        } else {
+                            b.classList.remove('border-primary', 'bg-primary', 'bg-opacity-10');
+                        }
+                    });
+                }
+            },
+            
+            // Save task
+            saveTask() {
+                const name = DOM.addTaskModal.taskName.value.trim();
+                const description = DOM.addTaskModal.taskDescription.value.trim();
+                
+                if (!name) {
+                    alert('请输入任务名称');
+                    return;
+                }
+                
+                // Add task to data
+                const task = {
+                    name,
+                    description,
+                    difficulty: this.state.selectedDifficulty
+                };
+                
+                AppData.addTask(task);
+                
+                // Close modal
+                this.closeAddTaskModal();
+                
+                // Update UI
+                this.renderTasks();
+                this.updateDashboard();
+                
+                // Update task select dropdown if in check-in section
+                if (this.state.activeSection === 'checkin') {
+                    this.populateTaskSelect();
+                }
+            },
+            
+            // Open Edit Task Modal
+            openEditTaskModal(taskId) {
+                const task = AppData.tasks.find(t => t.id === taskId);
+                if (!task) return;
+                
+                // Fill form
+                DOM.editTaskModal.taskId.value = task.id;
+                DOM.editTaskModal.taskName.value = task.name;
+                DOM.editTaskModal.taskDescription.value = task.description;
+                this.state.selectedEditDifficulty = task.difficulty;
+                
+                // Update difficulty buttons
+                DOM.editTaskModal.difficultyBtns.forEach(btn => {
+                    if (btn.dataset.value === task.difficulty.toString()) {
+                        btn.classList.add('border-primary', 'bg-primary', 'bg-opacity-10');
+                    } else {
+                        btn.classList.remove('border-primary', 'bg-primary', 'bg-opacity-10');
+                    }
+                });
+                
+                // Show modal
+                DOM.modals.editTask.classList.remove('hidden');
+            },
+            
+            // Close Edit Task Modal
+            closeEditTaskModal() {
+                DOM.modals.editTask.classList.add('hidden');
+            },
+            
+            // Update task
+            updateTask() {
+                const taskId = DOM.editTaskModal.taskId.value;
+                const name = DOM.editTaskModal.taskName.value.trim();
+                const description = DOM.editTaskModal.taskDescription.value.trim();
+                
+                if (!name) {
+                    alert('请输入任务名称');
+                    return;
+                }
+                
+                // Update task in data
+                const updatedTask = {
+                    name,
+                    description,
+                    difficulty: this.state.selectedEditDifficulty
+                };
+                
+                AppData.updateTask(taskId, updatedTask);
+                
+                // Close modal
+                this.closeEditTaskModal();
+                
+                // Update UI
+                this.renderTasks();
+                this.updateDashboard();
+                this.renderHistory();
+                
+                // Update task select dropdown if in check-in section
+                if (this.state.activeSection === 'checkin') {
+                    this.populateTaskSelect();
+                    
+                    // If the updated task was selected, refresh task info
+                    if (this.state.selectedTaskId === taskId) {
+                        this.prepareCheckinSection();
+                    }
+                }
+            },
+            
+            // Delete task
+            deleteTask() {
+                const taskId = DOM.editTaskModal.taskId.value;
+                
+                if (confirm('确定要删除这个任务吗？相关的打卡记录也会被删除。')) {
+                    AppData.deleteTask(taskId);
+                    
+                    // Close modal
+                    this.closeEditTaskModal();
+                    
+                    // Update UI
+                    this.renderTasks();
+                    this.updateDashboard();
+                    this.renderHistory();
+                    
+                    // Update task select dropdown if in check-in section
+                    if (this.state.activeSection === 'checkin') {
+                        this.populateTaskSelect();
+                        
+                        // If the deleted task was selected, clear selection
+                        if (this.state.selectedTaskId === taskId) {
+                            this.state.selectedTaskId = null;
+                            document.getElementById('checkin-task-select').value = '';
+                            DOM.checkin.taskName.textContent = '选择一个任务';
+                            DOM.checkin.taskDescription.textContent = '请从任务列表中选择一个任务进行打卡';
+                            DOM.checkin.taskDifficulty.innerHTML = '';
+                            DOM.checkin.submitCheckin.disabled = true;
+                        }
+                    }
+                }
+            },
+            
+            // Open Check-in Success Modal
+            openCheckinSuccessModal() {
+                DOM.modals.checkinSuccess.classList.remove('hidden');
+            },
+            
+            // Close Check-in Success Modal
+            closeCheckinSuccessModal() {
+                DOM.modals.checkinSuccess.classList.add('hidden');
+                this.navigateTo('dashboard');
+            },
+            
+            // Open Redeem Modal
+            openRedeemModal() {
+                const redeemable = AppData.getRedeemableAmount();
+                if (redeemable === 0) {
+                    alert('您当前没有可兑换的奖励');
+                    return;
+                }
+                
+                DOM.redeemModal.redeemableAmount.textContent = redeemable.toFixed(2);
+                DOM.modals.redeem.classList.remove('hidden');
+            },
+            
+            // Close Redeem Modal
+            closeRedeemModal() {
+                DOM.modals.redeem.classList.add('hidden');
+            },
+            
+            // Confirm redeem
+            confirmRedeem() {
+                const redeemed = AppData.redeemRewards();
+                if (redeemed > 0) {
+                    alert(`成功兑换 ${redeemed} 元！`);
+                    
+                    // Update UI
+                    this.updateDashboard();
+                }
+                
+                this.closeRedeemModal();
+            },
+            
+            // 新增：Open Deduct Flowers Modal
+            openDeductFlowersModal() {
+                // 使用直接选择器访问元素，避免DOM对象定义问题
+                const modal = document.getElementById('deduct-flowers-modal');
+                const currentFlowersEl = modal.querySelector('#current-flowers');
+                const deductAmountEl = modal.querySelector('#deduct-amount');
+                const deductReasonEl = modal.querySelector('#deduct-reason');
+                
+                if (currentFlowersEl) currentFlowersEl.textContent = AppData.user.totalFlowers;
+                if (deductAmountEl) {
+                    deductAmountEl.value = 1;
+                    deductAmountEl.max = 1000; // 设置一个较大的值，允许扣减更多
+                }
+                if (deductReasonEl) deductReasonEl.value = '';
+                
+                modal.classList.remove('hidden');
+            },
+            
+            // 新增：Close Deduct Flowers Modal
+            closeDeductFlowersModal() {
+                DOM.modals.deductFlowers.classList.add('hidden');
+            },
+            
+            // 新增：Confirm Deduct Flowers
+            confirmDeductFlowers() {
+                // 使用直接选择器访问元素，避免DOM对象定义问题
+                const modal = document.getElementById('deduct-flowers-modal');
+                const deductAmountEl = modal.querySelector('#deduct-amount');
+                const deductReasonEl = modal.querySelector('#deduct-reason');
+                
+                const amount = parseInt(deductAmountEl.value);
+                const reason = deductReasonEl.value.trim();
+                
+                if (isNaN(amount) || amount <= 0) {
+                    alert('请输入有效的扣减数量');
+                    return;
+                }
+                
+                const deduction = AppData.deductFlowers(amount, reason);
+                if (deduction) {
+                    alert(`成功扣减 ${amount} 朵小红花`);
+                    
+                    // Update UI
+                    this.updateDashboard();
+                    this.renderHistory();
+                }
+                
+                this.closeDeductFlowersModal();
+            },
+            
+            // Export to Excel
+            exportToExcel() {
+                if (AppData.checkins.length === 0 && AppData.deductions.length === 0) {
+                    alert('没有记录可导出');
+                    return;
+                }
+                
+                // Prepare data
+                const data = [
+                    ...AppData.checkins.map(checkin => {
+                        const task = AppData.tasks.find(t => t.id === checkin.taskId);
+                        const date = new Date(checkin.date);
+                        
+                        return {
+                            '类型': '打卡',
+                            '任务名称': task ? task.name : '',
+                            '时间': date.toLocaleString('zh-CN'),
+                            '小红花数量': '+' + checkin.flowers,
+                            '备注': checkin.notes || ''
+                        };
+                    }),
+                    ...AppData.deductions.map(deduction => {
+                        const date = new Date(deduction.date);
+                        
+                        return {
+                            '类型': '扣减',
+                            '任务名称': '',
+                            '时间': date.toLocaleString('zh-CN'),
+                            '小红花数量': '-' + deduction.amount,
+                            '备注': deduction.reason || ''
+                        };
+                    })
+                ].sort((a, b) => new Date(b.时间) - new Date(a.时间));
+                
+                // Create workbook
+                const ws = XLSX.utils.json_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, '打卡记录');
+                
+                // Export
+                const today = new Date().toISOString().split('T')[0];
+                XLSX.writeFile(wb, `打卡记录_${today}.xlsx`);
+            },
+            
+            // Export backup
+            exportBackup() {
+                const backupData = AppData.exportBackup();
+                
+                // Create blob
+                const blob = new Blob([backupData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                // Create download link
+                const a = document.createElement('a');
+                a.href = url;
+                const today = new Date().toISOString().split('T')[0];
+                a.download = `小红花打卡备份_${today}.json`;
+                document.body.appendChild(a);
+                a.click();
+                
+                // Cleanup
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 0);
+            },
+            
+            // Open Import Backup Modal
+            openImportBackupModal() {
+                // Reset form
+                DOM.importBackupModal.backupFile.value = '';
+                DOM.importBackupModal.confirmBtn.disabled = true;
+                
+                // Show modal
+                DOM.modals.importBackup.classList.remove('hidden');
+            },
+            
+            // Close Import Backup Modal
+            closeImportBackupModal() {
+                DOM.modals.importBackup.classList.add('hidden');
+            },
+            
+            // Handle backup upload
+            handleBackupUpload(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                // Check if file is JSON
+                if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+                    alert('请上传JSON格式的备份文件');
+                    return;
+                }
+                
+                // Read file
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.state.importBackupData = e.target.result;
+                    DOM.importBackupModal.confirmBtn.disabled = false;
+                };
+                reader.readAsText(file);
+            },
+            
+            // Confirm import backup
+            confirmImportBackup() {
+                if (!this.state.importBackupData) {
+                    alert('请选择备份文件');
+                    return;
+                }
+                
+                if (confirm('确定要导入备份数据吗？这将覆盖当前所有数据。')) {
+                    const success = AppData.importBackup(this.state.importBackupData);
+                    
+                    if (success) {
+                        alert('备份导入成功');
+                        
+                        // Update UI
+                        this.updateDashboard();
+                        this.renderTasks();
+                        this.renderHistory();
+                    } else {
+                        alert('备份导入失败，请检查文件格式');
+                    }
+                    
+                    // Close modal
+                    this.closeImportBackupModal();
+                }
+            },
+            
+            // Open Clear Data Modal
+            openClearDataModal() {
+                DOM.modals.clearData.classList.remove('hidden');
+            },
+            
+            // Close Clear Data Modal
+            closeClearDataModal() {
+                DOM.modals.clearData.classList.add('hidden');
+            },
+            
+            // Open Set Flowers Modal
+            openSetFlowersModal() {
+                // Show current flowers amount
+                DOM.setFlowersModal.currentAmountEl.textContent = AppData.user.flowers || 0;
+                
+                // Reset input
+                DOM.setFlowersModal.amountInput.value = '';
+                
+                // Show modal
+                DOM.setFlowersModal.modal.classList.remove('hidden');
+            },
+            
+            // Close Set Flowers Modal
+            closeSetFlowersModal() {
+                DOM.setFlowersModal.modal.classList.add('hidden');
+            },
+            
+            // Confirm Set Flowers
+            confirmSetFlowers() {
+                const amount = parseInt(DOM.setFlowersModal.amountInput.value);
+                const operationType = document.querySelector('input[name="flowers-operation"]:checked').value;
+                
+                if (isNaN(amount) || amount < 0 || amount > 9999) {
+                    alert('请输入有效的小红花数量（0-9999）');
+                    return;
+                }
+                
+                // Update flowers amount
+                if (operationType === 'add') {
+                    AppData.user.totalFlowers = (AppData.user.totalFlowers || 0) + amount;
+                } else {
+                    AppData.user.totalFlowers = amount;
+                }
+                
+                AppData.save();
+                
+                // Close modal
+                this.closeSetFlowersModal();
+                
+                // Update UI
+                this.updateDashboard();
+                
+                // Show success message
+                if (operationType === 'add') {
+                    alert(`成功增加 ${amount} 朵小红花！`);
+                } else {
+                    alert(`小红花数量已设置为 ${amount} 朵！`);
+                }
+            },
+            
+            // Confirm clear data
+            confirmClearData() {
+                if (confirm('确定要清除所有数据吗？此操作无法恢复。')) {
+                    AppData.clearAllData();
+                    
+                    // Update UI
+                    this.updateDashboard();
+                    this.renderTasks();
+                    this.renderHistory();
+                    
+                    // Close modal
+                    this.closeClearDataModal();
+                }
+            },
+            
+            // Open Cleanup Data Modal
+            openCleanupDataModal() {
+                // Reset form
+                DOM.cleanupDataModal.daysBtns.forEach(btn => {
+                    btn.classList.remove('border-primary', 'bg-primary', 'bg-opacity-10');
+                });
+                DOM.cleanupDataModal.confirmBtn.disabled = true;
+                this.state.history.selectedDays = null;
+                
+                // Show modal
+                DOM.modals.cleanupData.classList.remove('hidden');
+            },
+            
+            // Close Cleanup Data Modal
+            closeCleanupDataModal() {
+                DOM.modals.cleanupData.classList.add('hidden');
+            },
+            
+            // Select cleanup days
+            selectCleanupDays(btn) {
+                const days = btn.dataset.days;
+                
+                // Update state
+                this.state.history.selectedDays = parseInt(days);
+                
+                // Update buttons
+                DOM.cleanupDataModal.daysBtns.forEach(b => {
+                    if (b.dataset.days === days) {
+                        b.classList.add('border-primary', 'bg-primary', 'bg-opacity-10');
+                    } else {
+                        b.classList.remove('border-primary', 'bg-primary', 'bg-opacity-10');
+                    }
+                });
+                
+                // Enable confirm button
+                DOM.cleanupDataModal.confirmBtn.disabled = false;
+            },
+            
+            // Confirm cleanup old data
+            confirmCleanupData() {
+                const { selectedDays } = this.state.history;
+                
+                if (!selectedDays) {
+                    alert('请选择要保留的天数');
+                    return;
+                }
+                
+                if (confirm(`确定要清理${selectedDays}天前的历史记录吗？此操作无法恢复。`)) {
+                    const cutoffDate = new Date();
+                    cutoffDate.setDate(cutoffDate.getDate() - selectedDays);
+                    
+                    // Filter checkins
+                    AppData.checkins = AppData.checkins.filter(checkin => {
+                        const checkinDate = new Date(checkin.date);
+                        return checkinDate >= cutoffDate;
+                    });
+                    
+                    // Filter deductions
+                    AppData.deductions = AppData.deductions.filter(deduction => {
+                        const deductionDate = new Date(deduction.date);
+                        return deductionDate >= cutoffDate;
+                    });
+                    
+                    // Save changes
+                    AppData.save();
+                    
+                    // Reset history state
+                    this.resetHistoryState();
+                    
+                    // Update UI
+                    this.renderHistory();
+                    this.updateDashboard();
+                    
+                    // Close modal
+                    this.closeCleanupDataModal();
+                    
+                    alert(`成功清理${selectedDays}天前的历史记录`);
+                }
+            }
+        };
+
+        // Initialize the app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+        });
+    </script>
+
+
+</body></html>
